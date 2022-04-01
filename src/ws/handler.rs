@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use actix::{Actor, StreamHandler};
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
@@ -7,40 +7,36 @@ use log::*;
 
 use crate::{draw::Drawing, ws::messages::Message};
 
-pub struct WebSocketHandler<'a> {
-    drawing: Mutex<Drawing<'a>>,
+pub struct WebSocketHandler {
+    pub drawing: Arc<Mutex<Drawing<'static>>>,
 }
 
-impl Actor for WebSocketHandler<'static> {
+impl Actor for WebSocketHandler {
     type Context = ws::WebsocketContext<Self>;
 }
 
-impl WebSocketHandler<'_> {
-    fn handle_message(&mut self, msg: &str) {
-        info!("Incomming websocket message: {msg}");
-        if let Ok(msg) = serde_json::from_str::<Message>(msg) {
-            match msg {
-                Message::Stroke(stroke) => {
-                    info!("Stroke");
-                }
-                Message::Image(image) => {
-                    info!("Image");
-                }
-                Message::Motion(stroke) => {
-                    info!("Motion");
-                }
-            };
-        } else {
-            error!("Could not parse message");
-        };
-    }
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketHandler<'static> {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketHandler {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => self.handle_message(&text),
+            Ok(ws::Message::Text(text)) => {
+                info!("Incomming websocket message: {text}");
+                if let Ok(m) = serde_json::from_str::<Message>(&text) {
+                    match m {
+                        Message::Stroke(stroke) => {
+                            info!("Stroke");
+                        }
+                        Message::Image(image) => {
+                            info!("Image");
+                        }
+                        Message::Motion(stroke) => {
+                            info!("Motion");
+                        }
+                    };
+                } else {
+                    error!("Could not parse message");
+                };
+            }
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
             _ => (),
         }

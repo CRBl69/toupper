@@ -5,7 +5,7 @@ use clap::Parser;
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
     /// Port on which to listen for connections
-    #[clap(short, long, default_value_t = 8080)]
+    #[clap(short, long, default_value_t = 8079)]
     pub port: u16,
 
     /// Path to the directory containing the generated files
